@@ -1,0 +1,19 @@
+[
+  {"name":"brute","types":["BRUTE"],"profile":{"attack_bonus":0.15,"speed_bonus":-0.15,"precision_bonus":0,"evasion":0,"critical_bonus":0,"defense_bonus":0.15,"ability_bonus":0}},
+  {"name":"tech","types":["TECH"],"profile":{"attack_bonus":0,"speed_bonus":0,"precision_bonus":10,"evasion":0,"critical_bonus":5,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"mystic","types":["MYSTIC"],"profile":{"attack_bonus":0,"speed_bonus":0,"precision_bonus":0,"evasion":0,"critical_bonus":5,"defense_bonus":0,"ability_bonus":0.15}},
+  {"name":"agile","types":["AGILE"],"profile":{"attack_bonus":0,"speed_bonus":0.20,"precision_bonus":0,"evasion":10,"critical_bonus":0,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"energy","types":["ENERGY"],"profile":{"attack_bonus":0.15,"speed_bonus":0,"precision_bonus":-5,"evasion":0,"critical_bonus":0,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"psychic","types":["PSYCHIC"],"profile":{"attack_bonus":0,"speed_bonus":0,"precision_bonus":10,"evasion":0,"critical_bonus":10,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"symbiote","types":["SYMBIOTE"],"profile":{"attack_bonus":0,"speed_bonus":0,"precision_bonus":0,"evasion":0,"critical_bonus":0,"defense_bonus":0.20,"ability_bonus":0}},
+  {"name":"martial","types":["MARTIAL"],"profile":{"attack_bonus":0,"speed_bonus":0.05,"precision_bonus":5,"evasion":0,"critical_bonus":5,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"brute_agile","types":["BRUTE","AGILE"],"profile":{"attack_bonus":0.15,"speed_bonus":-0.05,"precision_bonus":0,"evasion":5,"critical_bonus":0,"defense_bonus":0.15,"ability_bonus":0}},
+  {"name":"agile_brute","types":["AGILE","BRUTE"],"profile":{"attack_bonus":0.075,"speed_bonus":0.125,"precision_bonus":0,"evasion":10,"critical_bonus":0,"defense_bonus":0.075,"ability_bonus":0}},
+  {"name":"tech_martial","types":["TECH","MARTIAL"],"profile":{"attack_bonus":0,"speed_bonus":0.025,"precision_bonus":12.5,"evasion":0,"critical_bonus":7.5,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"mystic_symbiote","types":["MYSTIC","SYMBIOTE"],"profile":{"attack_bonus":0,"speed_bonus":0,"precision_bonus":0,"evasion":0,"critical_bonus":5,"defense_bonus":0.10,"ability_bonus":0.15}},
+  {"name":"empty_fallback","types":[],"profile":{"attack_bonus":0,"speed_bonus":0.05,"precision_bonus":5,"evasion":0,"critical_bonus":5,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"unknown_fallback","types":["UNKNOWN"],"profile":{"attack_bonus":0,"speed_bonus":0.05,"precision_bonus":5,"evasion":0,"critical_bonus":5,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"unknown_then_agile","types":["UNKNOWN","AGILE"],"profile":{"attack_bonus":0,"speed_bonus":0.20,"precision_bonus":0,"evasion":10,"critical_bonus":0,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"agile_then_unknown","types":["AGILE","UNKNOWN"],"profile":{"attack_bonus":0,"speed_bonus":0.20,"precision_bonus":0,"evasion":10,"critical_bonus":0,"defense_bonus":0,"ability_bonus":0}},
+  {"name":"null_fallback","types":null,"profile":{"attack_bonus":0,"speed_bonus":0.05,"precision_bonus":5,"evasion":0,"critical_bonus":5,"defense_bonus":0,"ability_bonus":0}}
+]
