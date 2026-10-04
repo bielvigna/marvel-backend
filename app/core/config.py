@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     character_api_base_url: str = "http://localhost:8000"
     firebase_project_id: str = ""
     firebase_credentials_path: str = ""
+    cloudinary_api_secret: str = ""
 
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", extra="ignore")
 

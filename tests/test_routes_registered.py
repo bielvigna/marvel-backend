@@ -5,6 +5,7 @@ def test_profile_friend_and_challenge_routes_are_registered(app):
     expected = {
         ("/v1/profile/me", "GET"),
         ("/v1/profile/me", "PATCH"),
+        ("/v1/profile/avatar-signature", "POST"),
         ("/v1/friends", "GET"),
         ("/v1/friends/search", "GET"),
         ("/v1/friend-requests", "GET"),

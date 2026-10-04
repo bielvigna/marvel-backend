@@ -4,7 +4,7 @@ Serviço online separado do `backend-ai`. Firebase Authentication identifica jog
 
 ## Configuração local
 
-1. Copie `.env.example` para `.env` e ajuste `DATABASE_URL`, `FIREBASE_PROJECT_ID` e `CHARACTER_API_BASE_URL`. O backend aceita as credenciais REST da Upstash (`UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN`); alternativamente, configure `REDIS_URL` com a conexão Redis TCP (`redis://` ou `rediss://`). Quando as variáveis REST estão preenchidas, elas têm prioridade. O cliente HTTP da Upstash suporta também os scripts Lua atômicos usados pela fila de matchmaking.
+1. Copie `.env.example` para `.env` e ajuste `DATABASE_URL`, `FIREBASE_PROJECT_ID` e `CHARACTER_API_BASE_URL`. Para habilitar upload assinado de avatar, configure `CLOUDINARY_API_SECRET` somente no backend. O backend aceita as credenciais REST da Upstash (`UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN`); alternativamente, configure `REDIS_URL` com a conexão Redis TCP (`redis://` ou `rediss://`). Quando as variáveis REST estão preenchidas, elas têm prioridade. O cliente HTTP da Upstash suporta também os scripts Lua atômicos usados pela fila de matchmaking.
 2. Configure credenciais do Firebase Admin por Application Default Credentials ou `FIREBASE_CREDENTIALS_PATH`. A chave de serviço não deve entrar no repositório.
 3. Inicie PostgreSQL e Redis. O arquivo `docker-compose.test.yml` serve somente para dependências de teste local; portas `55432` e `56379` são isoladas das portas padrão.
 4. Instale `requirements-dev.txt`, aplique `alembic upgrade head` e inicie o servidor:
@@ -19,6 +19,7 @@ O catálogo consultado em `CHARACTER_API_BASE_URL` é o `backend-ai`. Seus dados
 
 - `GET /health/live` e `GET /health/ready`
 - `GET/PATCH /v1/profile/me`
+- `POST /v1/profile/avatar-signature` (autenticado; assina uma foto para o caminho de avatar associado ao jogador)
 - `GET /v1/friends`, `GET /v1/friends/search`, `GET/POST /v1/friend-requests`
 - `GET/POST /v1/challenges` e `POST /v1/challenges/{id}/accept|decline`
 - `POST/GET/DELETE /v1/matchmaking/queue`

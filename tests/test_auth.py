@@ -12,6 +12,14 @@ async def test_private_identity_route_requires_bearer_token(client):
 
 
 @pytest.mark.asyncio
+async def test_avatar_signature_route_requires_bearer_token(client):
+    response = await client.post("/v1/profile/avatar-signature")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "authentication_required"
+
+
+@pytest.mark.asyncio
 async def test_invalid_firebase_token_is_rejected(client):
     response = await client.get("/v1/profile/me", headers={"Authorization": "Bearer invalid-token"})
 
