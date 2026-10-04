@@ -1,5 +1,6 @@
 import math
 import uuid
+from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
@@ -150,6 +151,37 @@ async def test_server_resolves_turns_and_idempotent_action_retries(database_clie
     assert retry.json() == result
     assert deterministic_battle_rng.opening_calls == 1
     assert deterministic_battle_rng.attack_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_knockout_automatically_advances_to_next_living_fighter(database_client, app):
+    rng = ScriptedRandom(opening_roll=0.0, attack_rolls=[0, 99])
+    app.state.battle_rng = rng
+    match_id, initial = await start_game(database_client)
+    async with app.state.session_factory() as session:
+        match = await session.get(Match, match_id)
+        state = deepcopy(match.state)
+        state["teams"]["player-2"]["fighters"][0]["hp"] = 1
+        match.state = state
+        await session.commit()
+
+    response = await database_client.post(
+        f"/v1/matches/{match_id}/actions",
+        headers=auth(),
+        json={
+            "action_id": str(uuid.uuid4()),
+            "expected_version": initial["version"],
+            "action": "attack",
+        },
+    )
+
+    assert response.status_code == 200
+    match_state = response.json()["match"]
+    opponent = next(team for team in match_state["teams"] if team["player_uid"] == "player-2")
+    assert opponent["fighters"][0]["hp"] == 0
+    assert opponent["active_index"] == 1
+    assert opponent["fighters"][opponent["active_index"]]["hp"] > 0
+    assert match_state["current_turn_uid"] == "player-2"
 
 
 @pytest.mark.asyncio

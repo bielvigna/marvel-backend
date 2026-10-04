@@ -134,6 +134,8 @@ class MatchService:
         events = list(state.get("events", []))
         events.append({"turn_number": match.turn_number, **event})
         state["events"] = events[-100:]
+        for team in state.get("teams", {}).values():
+            BattleRules.advance_knocked_out_active(team)
         match.state = state
         participants = await self._participants(match_id)
         other_uid = next(link.player_uid for link, _ in participants if link.player_uid != player.uid)

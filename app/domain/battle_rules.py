@@ -52,6 +52,21 @@ POWER_TERMS = {
 
 class BattleRules:
     @staticmethod
+    def advance_knocked_out_active(team: dict) -> None:
+        """Promote the next living fighter when the active one is knocked out."""
+        fighters = team.get("fighters", [])
+        active_index = team.get("active_index", 0)
+        if not fighters or active_index < 0 or active_index >= len(fighters):
+            return
+        if fighters[active_index].get("hp", 0) > 0:
+            return
+        for offset in range(1, len(fighters) + 1):
+            next_index = (active_index + offset) % len(fighters)
+            if fighters[next_index].get("hp", 0) > 0:
+                team["active_index"] = next_index
+                return
+
+    @staticmethod
     def combat_profile(types: list[str] | None) -> dict[str, float]:
         """Add ordered type modifiers; chance modifiers are percentage points."""
         profile = dict.fromkeys(PROFILE_FIELDS, 0.0)
