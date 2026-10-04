@@ -10,9 +10,18 @@ from app.core.config import Settings, get_settings
 def make_engine(settings: Settings | None = None):
     settings = settings or get_settings()
     database_url = make_url(settings.database_url)
+    connect_args = {}
     if database_url.drivername in {"postgres", "postgresql"}:
         database_url = database_url.set(drivername="postgresql+asyncpg")
-    return create_async_engine(database_url, pool_pre_ping=True)
+    if database_url.drivername == "postgresql+asyncpg":
+        # libpq URLs commonly include sslmode, but asyncpg expects this setting
+        # as a connect argument rather than a URL query parameter.
+        query = dict(database_url.query)
+        sslmode = query.pop("sslmode", None)
+        if sslmode is not None:
+            connect_args["ssl"] = str(sslmode).lower()
+            database_url = database_url.set(query=query)
+    return create_async_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
 
 
 def make_session_factory(engine):
