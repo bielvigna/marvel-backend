@@ -9,6 +9,7 @@ from app.core.errors import GameplayError
 from app.core.firebase_auth import AuthenticatedPlayer
 from app.db.models import ActiveMatchPlayer, Match, MatchAction, MatchParticipant, PlayerProfile
 from app.domain.battle_rules import TYPE_ORDER, BattleRules
+from app.repositories.matches import get_active_match_player, is_team_selection_expired
 
 
 class MatchService:
@@ -19,9 +20,13 @@ class MatchService:
 
     async def get(self, match_id: str, player: AuthenticatedPlayer) -> dict:
         match = await self._get_participant_match(match_id, player.uid)
+        await self._expire_team_selection(match)
         return await self._serialize(match)
 
     async def get_active(self, player: AuthenticatedPlayer) -> dict | None:
+        active = await get_active_match_player(self.session, player.uid)
+        if active is None:
+            return None
         match = await self.session.scalar(
             select(Match)
             .join(ActiveMatchPlayer, ActiveMatchPlayer.match_id == Match.id)
@@ -34,6 +39,8 @@ class MatchService:
 
     async def submit_team(self, match_id: str, player: AuthenticatedPlayer, character_ids: list[int]) -> dict:
         match = await self._get_participant_match(match_id, player.uid, lock=True)
+        if await self._expire_team_selection(match):
+            raise GameplayError(410, "match_expired", "This match expired before team selection was completed.")
         if match.status != "awaiting_teams":
             raise GameplayError(409, "teams_locked", "Teams can only be submitted before the match starts.")
         if player.uid in match.state.get("teams", {}):
@@ -84,6 +91,16 @@ class MatchService:
         await self.session.commit()
         await self.session.refresh(match)
         return await self._serialize(match)
+
+    async def _expire_team_selection(self, match: Match) -> bool:
+        if match.status != "awaiting_teams" or not is_team_selection_expired(match):
+            return False
+        match.status = "expired"
+        await self.session.execute(
+            ActiveMatchPlayer.__table__.delete().where(ActiveMatchPlayer.match_id == match.id)
+        )
+        await self.session.commit()
+        return True
 
     async def submit_action(self, match_id: str, player: AuthenticatedPlayer, request: dict) -> dict:
         previous = await self.session.scalar(

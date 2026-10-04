@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +16,35 @@ async def get_incoming_challenges(session: AsyncSession, uid: str, now):
 
 
 async def get_active_match_player(session: AsyncSession, uid: str) -> ActiveMatchPlayer | None:
-    return await session.get(ActiveMatchPlayer, uid)
+    active = await session.get(ActiveMatchPlayer, uid)
+    if active is None:
+        return None
+    match = await session.get(Match, active.match_id)
+    if match is None:
+        await session.delete(active)
+        await session.commit()
+        return None
+    if match.status == "awaiting_teams" and is_team_selection_expired(match):
+        match.status = "expired"
+        await session.execute(
+            ActiveMatchPlayer.__table__.delete().where(ActiveMatchPlayer.match_id == match.id)
+        )
+        await session.commit()
+        return None
+    if match.status not in ("awaiting_teams", "active"):
+        await session.delete(active)
+        await session.commit()
+        return None
+    return active
+
+
+def is_team_selection_expired(match: Match, now: datetime | None = None) -> bool:
+    last_activity = match.updated_at or match.created_at
+    if last_activity is None:
+        return False
+    if last_activity.tzinfo is None:
+        last_activity = last_activity.replace(tzinfo=timezone.utc)
+    return last_activity <= (now or datetime.now(timezone.utc)) - timedelta(minutes=15)
 
 
 async def get_match_participants(session: AsyncSession, match_id: str):

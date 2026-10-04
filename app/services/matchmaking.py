@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import GameplayError
 from app.core.firebase_auth import AuthenticatedPlayer
 from app.db.models import ActiveMatchPlayer, Match, MatchmakingPair, MatchParticipant
-from app.repositories.matches import get_active_match_player
+from app.repositories.matches import get_active_match_player, is_team_selection_expired
 from app.services.profiles import get_or_create_profile
 
 ENQUEUE_SCRIPT = """
@@ -116,6 +116,19 @@ end
 return 1
 """
 
+CLEAR_MATCHED_TICKET_SCRIPT = """
+local ticket_key = KEYS[1]
+local expected_match_id = ARGV[1]
+local raw = redis.call('GET', ticket_key)
+if not raw then return 0 end
+local state = cjson.decode(raw)
+if state.state == 'matched' and state.match_id == expected_match_id then
+    redis.call('DEL', ticket_key)
+    return 1
+end
+return 0
+"""
+
 
 class RedisMatchmakingQueue:
     def __init__(self, redis: Redis, ticket_ttl_seconds: int = 1800, result_ttl_seconds: int = 600):
@@ -198,6 +211,14 @@ class RedisMatchmakingQueue:
             pair_id,
         )
 
+    async def clear_matched_ticket(self, uid: str, match_id: str) -> None:
+        await self.redis.eval(
+            CLEAR_MATCHED_TICKET_SCRIPT,
+            1,
+            self.ticket_prefix + uid,
+            match_id,
+        )
+
     def _decode_result(self, result) -> dict:
         values = [value.decode() if isinstance(value, bytes) else str(value) for value in result]
         if values[0] == "pairing":
@@ -220,12 +241,17 @@ class MatchmakingService:
         if active is not None:
             raise GameplayError(409, "player_in_match", "You are already in an active match.")
         state = await self.queue.enqueue(player.uid)
+        state = await self._discard_stale_match_result(player.uid, state)
+        if state["state"] == "idle":
+            state = await self.queue.enqueue(player.uid)
         if state["state"] == "pairing":
             return await self._complete_pair(state["pair_id"])
         return state
 
     async def status(self, player: AuthenticatedPlayer) -> dict:
+        await get_active_match_player(self.session, player.uid)
         state = await self.queue.status(player.uid)
+        state = await self._discard_stale_match_result(player.uid, state)
         if state["state"] == "pairing":
             return await self._complete_pair(state["pair_id"])
         if state["state"] != "idle":
@@ -234,6 +260,23 @@ class MatchmakingService:
         if active is not None:
             return {"state": "matched", "match_id": active.match_id}
         return state
+
+    async def _discard_stale_match_result(self, uid: str, state: dict) -> dict:
+        if state.get("state") != "matched":
+            return state
+        match_id = state.get("match_id")
+        match = await self.session.get(Match, match_id) if match_id else None
+        if match is not None and match.status == "awaiting_teams" and is_team_selection_expired(match):
+            match.status = "expired"
+            await self.session.execute(
+                ActiveMatchPlayer.__table__.delete().where(ActiveMatchPlayer.match_id == match.id)
+            )
+            await self.session.commit()
+        if match is not None and match.status in {"awaiting_teams", "active"}:
+            return state
+        if match_id:
+            await self.queue.clear_matched_ticket(uid, match_id)
+        return {"state": "idle"}
 
     async def cancel(self, player: AuthenticatedPlayer) -> dict:
         state = await self.queue.cancel(player.uid)
