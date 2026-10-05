@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import GameplayError
 from app.core.firebase_auth import AuthenticatedPlayer
 from app.db.models import ActiveMatchPlayer, Match, MatchmakingPair, MatchParticipant
-from app.repositories.matches import get_active_match_player, is_team_selection_expired
+from app.repositories.matches import expire_inactive_match, get_active_match_player
 from app.services.profiles import get_or_create_profile
 
 ENQUEUE_SCRIPT = """
@@ -266,12 +266,8 @@ class MatchmakingService:
             return state
         match_id = state.get("match_id")
         match = await self.session.get(Match, match_id) if match_id else None
-        if match is not None and match.status == "awaiting_teams" and is_team_selection_expired(match):
-            match.status = "expired"
-            await self.session.execute(
-                ActiveMatchPlayer.__table__.delete().where(ActiveMatchPlayer.match_id == match.id)
-            )
-            await self.session.commit()
+        if match is not None:
+            await expire_inactive_match(self.session, match)
         if match is not None and match.status in {"awaiting_teams", "active"}:
             return state
         if match_id:

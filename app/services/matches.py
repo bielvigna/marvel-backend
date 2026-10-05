@@ -9,7 +9,7 @@ from app.core.errors import GameplayError
 from app.core.firebase_auth import AuthenticatedPlayer
 from app.db.models import ActiveMatchPlayer, Match, MatchAction, MatchParticipant, PlayerProfile
 from app.domain.battle_rules import TYPE_ORDER, BattleRules
-from app.repositories.matches import get_active_match_player, is_team_selection_expired
+from app.repositories.matches import expire_inactive_match, get_active_match_player
 
 
 class MatchService:
@@ -20,7 +20,7 @@ class MatchService:
 
     async def get(self, match_id: str, player: AuthenticatedPlayer) -> dict:
         match = await self._get_participant_match(match_id, player.uid)
-        await self._expire_team_selection(match)
+        await expire_inactive_match(self.session, match)
         return await self._serialize(match)
 
     async def get_active(self, player: AuthenticatedPlayer) -> dict | None:
@@ -39,7 +39,7 @@ class MatchService:
 
     async def submit_team(self, match_id: str, player: AuthenticatedPlayer, character_ids: list[int]) -> dict:
         match = await self._get_participant_match(match_id, player.uid, lock=True)
-        if await self._expire_team_selection(match):
+        if await expire_inactive_match(self.session, match):
             raise GameplayError(410, "match_expired", "This match expired before team selection was completed.")
         if match.status != "awaiting_teams":
             raise GameplayError(409, "teams_locked", "Teams can only be submitted before the match starts.")
@@ -92,17 +92,11 @@ class MatchService:
         await self.session.refresh(match)
         return await self._serialize(match)
 
-    async def _expire_team_selection(self, match: Match) -> bool:
-        if match.status != "awaiting_teams" or not is_team_selection_expired(match):
-            return False
-        match.status = "expired"
-        await self.session.execute(
-            ActiveMatchPlayer.__table__.delete().where(ActiveMatchPlayer.match_id == match.id)
-        )
-        await self.session.commit()
-        return True
-
     async def submit_action(self, match_id: str, player: AuthenticatedPlayer, request: dict) -> dict:
+        match = await self._get_participant_match(match_id, player.uid, lock=True)
+        if await expire_inactive_match(self.session, match):
+            raise GameplayError(410, "match_expired", "This match expired after ten minutes without a move.")
+
         previous = await self.session.scalar(
             select(MatchAction).where(
                 MatchAction.player_uid == player.uid,
@@ -116,7 +110,6 @@ class MatchService:
                 )
             return previous.result_json
 
-        match = await self._get_participant_match(match_id, player.uid, lock=True)
         if match.status != "active":
             raise GameplayError(409, "match_not_active", "This match is not accepting actions.")
         if match.version != request["expected_version"]:

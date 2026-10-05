@@ -1,9 +1,11 @@
 import math
 import uuid
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
 from app.db.models import Match
 
@@ -108,6 +110,28 @@ async def test_active_match_returns_current_participant_match_and_null_after_com
         await session.commit()
     completed = await database_client.get("/v1/matches/active", headers=auth())
     assert completed.json() == {"match": None}
+
+
+@pytest.mark.asyncio
+async def test_idle_active_match_expires_after_ten_minutes_and_releases_players(database_client, app):
+    match_id, _ = await start_game(database_client)
+    async with app.state.session_factory() as session:
+        match = await session.get(Match, match_id)
+        match.updated_at = datetime.now(timezone.utc) - timedelta(minutes=11)
+        await session.commit()
+
+    active = await database_client.get("/v1/matches/active", headers=auth())
+
+    assert active.status_code == 200
+    assert active.json() == {"match": None}
+    async with app.state.session_factory() as session:
+        match = await session.get(Match, match_id)
+        assert match.status == "expired"
+        from app.db.models import ActiveMatchPlayer
+        reservations = await session.scalars(
+            select(ActiveMatchPlayer).where(ActiveMatchPlayer.match_id == match_id)
+        )
+        assert reservations.all() == []
 
 
 @pytest.mark.asyncio
