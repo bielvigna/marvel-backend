@@ -199,8 +199,11 @@ class MatchService:
         participant_data = [
             {
                 "uid": profile.uid,
+                "username": profile.username,
                 "nickname": profile.nickname,
+                "display_name": profile.display_name,
                 "friend_code": profile.friend_code,
+                "avatar_url": profile.avatar_url,
                 "seat": link.seat,
             }
             for link, profile in participants
